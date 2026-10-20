@@ -1,0 +1,52 @@
+{
+  "recall@5_non_gap": 0.9285714285714286,
+  "correctness_all": 0.9090909090909091,
+  "gap_correctness": 1.0,
+  "gold_correctness": 0.8636363636363636,
+  "target_recall": 0.85,
+  "target_correctness": 0.9,
+  "recall_ok": true,
+  "correctness_ok": true,
+  "gap_ok": true,
+  "pilot_ready": true,
+  "search_latency_ms_est": 7140.749542599997,
+  "retrieval_summary": {
+    "chosen_chunking": "sentence_500",
+    "final_retriever": "dense_top20 + bge-reranker-v2-m3 → top5",
+    "threshold": 0.8392363041639328,
+    "baseline": {
+      "precision@5": 0.16428571428571428,
+      "recall@5": 0.6607142857142857,
+      "MRR": 0.5681547619047619
+    },
+    "hybrid": {
+      "precision@5": 0.16785714285714284,
+      "recall@5": 0.6517857142857143,
+      "MRR": 0.5148809523809524
+    },
+    "rerank": {
+      "precision@5": 0.24285714285714283,
+      "recall@5": 0.9285714285714286,
+      "MRR": 0.8377976190476192
+    },
+    "final": {
+      "precision@5": 0.24285714285714283,
+      "recall@5": 0.9285714285714286,
+      "MRR": 0.8377976190476192
+    },
+    "recall_curve_baseline_vecs": {
+      "1": 0.4107142857142857,
+      "3": 0.5714285714285714,
+      "5": 0.6607142857142857,
+      "10": 0.7410714285714286,
+      "20": 0.9107142857142857
+    },
+    "n_chunks": 377,
+    "n_docs_clean": 179
+  },
+  "recommendations": [
+    "multi: доп. подзапросы + diversify по doc_id; если R@5 всё ещё <1 — MMR/явный второй раздел",
+    "на gen не уходить в «нет инструкции», если способ уже назван во фрагменте",
+    "судью держать мягким к парафразу; gap-отказ нормализовать без домыслов"
+  ]
+}

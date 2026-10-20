@@ -1,0 +1,22 @@
+﻿# runtime
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# heavy / regenerable artifacts
+artifacts/chroma_filmoskop/
+artifacts/*.npy
+artifacts/*.pkl
+artifacts/chunks_*.json
+artifacts/corpus_clean.json
+artifacts/*.log
+artifacts/_*.log
+
+# local infra / scratch (root only)
+selectel_*.json
+selectel_*.py
+/_*.py
+filmoskop_rag.ipynb

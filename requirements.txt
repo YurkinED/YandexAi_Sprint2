@@ -1,0 +1,11 @@
+﻿# Filmoskop RAG (Sprint 2)
+
+numpy>=1.26
+pandas>=2.0
+torch>=2.1
+sentence-transformers>=3.0
+chromadb>=0.5
+rank-bm25>=0.2
+openai>=1.40
+beautifulsoup4>=4.12
+nbformat>=5.10
