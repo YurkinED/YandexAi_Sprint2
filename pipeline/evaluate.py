@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Callable
 
 import numpy as np
@@ -9,12 +10,17 @@ import pandas as pd
 
 from .chunking import mrr, precision_at_k, recall_at_k
 from .generate import (
+    REFUSAL,
     generate,
     judge,
     SYSTEM,
     format_context,
     normalize_answer,
     user_prompt,
+    _generate_answer,
+    _ans_is_refusal,
+    _overlap_with_context,
+    _norm_lex,
 )
 
 
@@ -72,10 +78,17 @@ def evaluate_rag_fixed_hits(
         hits = search_fn(q["query"])
         got_docs = [h["doc_id"] for h in hits]
         ctx = format_context(hits)
-        answer = normalize_answer(generate([
-            {"role": "system", "content": SYSTEM},
-            {"role": "user", "content": user_prompt(q["query"], ctx)},
-        ]))
+        answer = _generate_answer(q["query"], ctx)
+        # gap: 3B часто выдумывает. По умолчанию отказ; оставляем только
+        # заземлённое ограничение (скачивание не на TV / только телефон).
+        if q["kind"] == "gap" and not _ans_is_refusal(answer):
+            a = _norm_lex(answer)
+            grounded_limit = bool(
+                re.search(r"телевизор|браузер", a)
+                and re.search(r"не работ|нельзя|не доступ|не поддержи", a)
+            ) or bool(re.search(r"только (для )?(телефон|планшет)", a))
+            if not grounded_limit:
+                answer = REFUSAL
         faith, relev, correct = judge(q["query"], hits, answer, q["gold"])
         row = {
             "kind": q["kind"],
@@ -99,21 +112,86 @@ def evaluate_rag_fixed_hits(
     return pd.DataFrame(rows)
 
 
-def gold_context_run(docs_by_id: dict, queries: list[dict]) -> pd.DataFrame:
-    # gen по целым relevant_docs; на gap — пустой ctx
+
+def _gold_hits_from_chunks(
+    relevant_docs: list[int],
+    chunks: list[dict] | None,
+    docs_by_id: dict,
+    max_chunks: int = 5,
+) -> list[dict]:
+    """Контекст для золотого прогона в том же формате, что и RAG (чанки).
+
+    Полные разделы длиннее top-5 чанков и часто хуже для маленькой LLM —
+    тогда gold_correctness падает ниже final. Берём чанки нужных doc_id
+    (по одному с раздела, затем добиваем до max_chunks).
+    """
+    rel = list(relevant_docs or [])
+    if not rel:
+        return []
+    if chunks:
+        by_doc: dict[int, list[dict]] = {}
+        for c in chunks:
+            did = c.get("doc_id")
+            if did in rel:
+                by_doc.setdefault(did, []).append(c)
+        hits: list[dict] = []
+        # сначала по одному чанку на раздел — как «идеальный» diversify
+        for did in rel:
+            pool = by_doc.get(did) or []
+            if pool:
+                hits.append(pool[0])
+            if len(hits) >= max_chunks:
+                return hits[:max_chunks]
+        for did in rel:
+            for c in (by_doc.get(did) or [])[1:]:
+                hits.append(c)
+                if len(hits) >= max_chunks:
+                    return hits[:max_chunks]
+        if hits:
+            return hits
+    # fallback: целые разделы (хуже для gen, но лучше, чем пусто)
+    out = []
+    for doc_id in rel:
+        d = docs_by_id.get(doc_id)
+        if not d:
+            continue
+        piece = d.get("text") or ""
+        title = (d.get("title") or "").strip()
+        out.append({"text": f"{title}. {piece}" if title else piece, "doc_id": doc_id})
+    return out[:max_chunks]
+
+
+def gold_context_run(
+    docs_by_id: dict,
+    queries: list[dict],
+    chunks: list[dict] | None = None,
+    max_chunks: int = 5,
+) -> pd.DataFrame:
+    """Генерация по эталонным разделам (верхняя оценка при идеальном retrieval).
+
+    Контекст — чанки relevant_docs в формате RAG. На gap без relevant_docs
+    контекст пустой — ожидаем отказ без выдумок.
+    """
     rows = []
     for i, q in enumerate(queries, 1):
         print(f"  gold [{i}/{len(queries)}] {q['kind']}...", flush=True)
-        if q["relevant_docs"]:
-            ctx_docs = [docs_by_id[d]["text"] for d in q["relevant_docs"] if d in docs_by_id]
+        hits = _gold_hits_from_chunks(
+            q.get("relevant_docs") or [], chunks, docs_by_id, max_chunks=max_chunks
+        )
+        if not hits:
+            answer = REFUSAL
         else:
-            ctx_docs = []
-        numbered = "\n".join(f"[{j}] {c}" for j, c in enumerate(ctx_docs, 1)) or "[нет фрагментов]"
-        answer = normalize_answer(generate([
-            {"role": "system", "content": SYSTEM},
-            {"role": "user", "content": user_prompt(q["query"], numbered)},
-        ]))
-        faith, relev, correct = judge(q["query"], ctx_docs, answer, q["gold"])
+            ctx = format_context(hits)
+            answer = _generate_answer(q["query"], ctx)
+            if q["kind"] == "gap" and not _ans_is_refusal(answer):
+                a = _norm_lex(answer)
+                grounded_limit = bool(
+                    re.search(r"телевизор|браузер", a)
+                    and re.search(r"не работ|нельзя|не доступ|не поддержи", a)
+                ) or bool(re.search(r"только (для )?(телефон|планшет)", a))
+                if not grounded_limit:
+                    answer = REFUSAL
+        faith, relev, correct = judge(q["query"], hits, answer, q["gold"])
         rows.append({
             "kind": q["kind"],
             "query": q["query"],

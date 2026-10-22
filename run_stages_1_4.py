@@ -54,7 +54,7 @@ def main() -> None:
     (ART / "clean_stats.json").write_text(
         json.dumps(stats_to_dict(stats), ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    print("\n1] очистка")
+    print("\n[1] очистка")
     print(stats_to_dict(stats))
 
     import os
@@ -92,7 +92,7 @@ def main() -> None:
         json.dumps(chunk_reports, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    # по recall@5; 
+    # по recall@5; ничья — sentence (как в Lesson11)
     chosen = max(chunk_reports, key=lambda n: (chunk_reports[n]["recall@5"], "sentence" in n))
     print(f"чанкинг: {chosen}")
     texts, doc_ids, metas, vecs = stores[chosen]
@@ -167,7 +167,7 @@ def main() -> None:
     print("baseline", {k: round(v, 3) for k, v in m_base.items()})
     print("hybrid  ", {k: round(v, 3) for k, v in m_hyb.items()})
 
-    print("реранкер...")
+    print("гружу reranker...")
     reranker = CrossEncoder(
         "BAAI/bge-reranker-v2-m3",
         device=device,

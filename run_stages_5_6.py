@@ -1,4 +1,4 @@
-"""Этапы 5–6. Нужны artifacts/ из 1–4 и LLM """
+"""Этапы 5–6. Нужны artifacts/ из 1–4 и LLM на :8080."""
 
 from __future__ import annotations
 
@@ -70,34 +70,66 @@ def main() -> None:
     answered = report[report["kind"] != "gap"]
     print("retrieval non-gap:", answered[["precision@5", "recall@5", "MRR"]].mean().round(3).to_dict())
 
-    print("\nзолотой контекст")
+    print("\nзолотой контекст (чанки relevant_docs, тот же формат что RAG)")
     docs_by_id = {d["doc_id"]: d for d in cleaned}
-    gold = gold_context_run(docs_by_id, queries)
+    gold = gold_context_run(docs_by_id, queries, chunks=chunks, max_chunks=5)
     gold.to_pickle(ART / "gold_report.pkl")
+    gold.to_csv(ART / "gold_report.csv", index=False, encoding="utf-8-sig")
     print("gold", round(float(gold["correctness"].mean()), 3))
     print("final", round(float(report["correctness"].mean()), 3))
     print("разрыв", round(float(gold["correctness"].mean() - report["correctness"].mean()), 3))
+    print("gold faith/relev",
+          round(float(gold["faithfulness"].mean()), 3),
+          round(float(gold["answer relevance"].mean()), 3))
 
     r5 = float(answered["recall@5"].mean())
     corr = float(report["correctness"].mean())
     gold_corr = float(gold["correctness"].mean())
+    faith_m = float(report["faithfulness"].mean())
+    relev_m = float(report["answer relevance"].mean())
+    gold_gap = gold_corr - corr
+    by_kind = (
+        report.groupby("kind")[["faithfulness", "answer relevance", "correctness"]]
+        .mean(numeric_only=True)
+        .round(3)
+        .to_dict()
+    )
     verdict = {
         "recall@5_non_gap": r5,
         "correctness_all": corr,
         "gap_correctness": float(gap_ok),
         "gold_correctness": gold_corr,
+        "gold_minus_final_correctness": gold_gap,
+        "faithfulness_mean": faith_m,
+        "answer_relevance_mean": relev_m,
+        "judge_by_kind": by_kind,
         "target_recall": 0.85,
         "target_correctness": 0.90,
         "recall_ok": bool(r5 >= 0.85),
         "correctness_ok": bool(corr >= 0.90),
         "gap_ok": bool(gap_ok >= 0.8),
+        "judge_scales_ok": bool(faith_m >= 3.5 and relev_m >= 3.5),
         "pilot_ready": bool(r5 >= 0.85 and corr >= 0.90 and gap_ok >= 0.8),
         "search_latency_ms_est": lat,
         "retrieval_summary": summary,
+        "gold_note": (
+            "Золотой контекст = чанки эталонных разделов (не целые статьи). "
+            + (
+                "Разрыв отрицательный: проверить шум судьи или генерацию; "
+                "полный раздел как контекст раньше занижал gold относительно final."
+                if gold_gap < -1e-9
+                else "gold_correctness >= final — узкое место в основном поиск/ранжирование."
+            )
+        ),
+        "judge_note": (
+            "Судья: отдельные короткие вызовы без /no_think в user; "
+            "парсер игнорирует эхо шкалы «от 1 до 5»; "
+            "лексический fallback только если 0/1 не распарсились."
+        ),
         "recommendations": [
             "multi: доп. подзапросы + diversify по doc_id; если R@5 всё ещё <1 — MMR/явный второй раздел",
             "на gen не уходить в «нет инструкции», если способ уже назван во фрагменте",
-            "судью держать мягким к парафразу; gap-отказ нормализовать без домыслов",
+            "если faith/relev снова около 1 при верных ответах — смотреть сырой ответ судьи и парсер",
         ],
     }
     (ART / "verdict.json").write_text(

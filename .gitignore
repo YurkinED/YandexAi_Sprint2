@@ -19,3 +19,9 @@ artifacts/_*.log
 selectel_*.json
 selectel_*.py
 /_*.py
+
+# Local scratch (never commit)
+# Ephemeral dumps, downloads, one-off logs: /tmp/
+# Machine-only helpers (env overrides, one-off scripts): /local/
+/tmp/
+/local/

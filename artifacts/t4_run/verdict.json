@@ -1,15 +1,39 @@
 {
   "recall@5_non_gap": 0.9285714285714286,
-  "correctness_all": 0.9090909090909091,
+  "correctness_all": 0.9242424242424242,
   "gap_correctness": 1.0,
-  "gold_correctness": 0.8636363636363636,
+  "gold_correctness": 0.9393939393939394,
+  "gold_minus_final_correctness": 0.015151515151515249,
+  "faithfulness_mean": 4.257575757575758,
+  "answer_relevance_mean": 4.53030303030303,
+  "judge_by_kind": {
+    "faithfulness": {
+      "exact": 4.6,
+      "gap": 4.9,
+      "multi": 3.75,
+      "semantic": 4.12
+    },
+    "answer relevance": {
+      "exact": 4.867,
+      "gap": 4.9,
+      "multi": 4.375,
+      "semantic": 4.28
+    },
+    "correctness": {
+      "exact": 1.0,
+      "gap": 1.0,
+      "multi": 0.875,
+      "semantic": 0.88
+    }
+  },
   "target_recall": 0.85,
   "target_correctness": 0.9,
   "recall_ok": true,
   "correctness_ok": true,
   "gap_ok": true,
+  "judge_scales_ok": true,
   "pilot_ready": true,
-  "search_latency_ms_est": 7140.749542599997,
+  "search_latency_ms_est": 6027.291068800002,
   "retrieval_summary": {
     "chosen_chunking": "sentence_500",
     "final_retriever": "dense_top20 + bge-reranker-v2-m3 → top5",
@@ -44,9 +68,11 @@
     "n_chunks": 377,
     "n_docs_clean": 179
   },
+  "gold_note": "Золотой контекст = чанки эталонных разделов (не целые статьи). gold_correctness >= final — узкое место в основном поиск/ранжирование.",
+  "judge_note": "Судья: отдельные короткие вызовы без /no_think в user; парсер игнорирует эхо шкалы «от 1 до 5»; лексический fallback только если 0/1 не распарсились.",
   "recommendations": [
     "multi: доп. подзапросы + diversify по doc_id; если R@5 всё ещё <1 — MMR/явный второй раздел",
     "на gen не уходить в «нет инструкции», если способ уже назван во фрагменте",
-    "судью держать мягким к парафразу; gap-отказ нормализовать без домыслов"
+    "если faith/relev снова около 1 при верных ответах — смотреть сырой ответ судьи и парсер"
   ]
 }
