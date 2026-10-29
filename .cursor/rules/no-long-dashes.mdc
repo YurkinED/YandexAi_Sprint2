@@ -1,0 +1,23 @@
+---
+description: Never use long dashes in replies - only ASCII hyphen-minus
+alwaysApply: true
+---
+
+# No long dashes in answers
+
+Critical. In all chat replies, Markdown, commit messages, and docs you write in this session:
+
+- Do NOT use em dash (U+2014)
+- Do NOT use en dash (U+2013)
+- Do NOT use figure dash or horizontal bar
+- Use only the ASCII hyphen-minus: `-`
+
+## Examples
+
+Wrong: `master - with long glyph`, ranges with en/em dash glyphs
+
+Right: `мастер - primary`, `22:00-01:00`, `precreate - основной щит`
+
+For ranges prefer `from-to` or `A - B`, not a long dash glyph.
+
+If a draft contains em dash or en dash characters, replace them with `-` before sending.
